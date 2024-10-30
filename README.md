@@ -1,0 +1,2 @@
+# metaprime
+My bash days
