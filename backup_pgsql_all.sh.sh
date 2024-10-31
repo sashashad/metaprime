@@ -64,10 +64,10 @@ databases=("ias_gorizont" "ias_gorizont_filestorage" "rosreestr_etl")
 backup_success=true
 
 for db in "${databases[@]}"; do
-    backup_file="$NFS_BACKUP_DIR/$backup_date-${db}.backup.gz"
+    backup_file="$NFS_BACKUP_DIR/$backup_date-${db}.backup"
 
     # Команда для создания резервной копии
-    pg_dump -U postgres -F c -b -v "$db" | gzip > "$backup_file"
+    pg_dump -U postgres -F c -b -v "$db" > "$backup_file"
 
     # Проверка успешности выполнения команды
     if [ $? -eq 0 ]; then
@@ -77,6 +77,7 @@ for db in "${databases[@]}"; do
         backup_success=false  # Установить флаг в false, если резервное копирование не удалось
     fi
 done
+
 
 # Удаление старых резервных копий на NFS-шаре (старше 23 ч. 20 мин.) только если все резервные копии успешны
 if [ "$backup_success" = true ]; then
