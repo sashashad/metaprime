@@ -124,14 +124,16 @@ fi
 
 
 # Удаление файлов из папок conf и service (старше 1 дня)
-deleted_conf_service_count=$(find "$NFS_BACKUP_DIR/conf" "$NFS_BACKUP_DIR/service" "$NFS_BACKUP_DIR" -type f -mtime +1 -exec rm -f {} \; -print | wc -l)
+deleted_conf_service_count=$(find "$NFS_BACKUP_DIR/service" "$NFS_BACKUP_DIR/conf" -type f -mtime +1 -exec rm -f {} \; -print | wc -l)
+deleted_conf_service_count=$((deleted_conf_service_count + $(find "$NFS_BACKUP_DIR" -type f -mtime +1 -exec rm -f {} \; -print | wc -l)))
+
+# Общее количество удаленных файлов
+total_deleted_files_count=$((deleted_files_count + deleted_conf_service_count))
 
 if [ "$total_deleted_files_count" -gt 0 ]; then
-    log_message "INFO" "Старые резервные копии на NFS-шаре успешно удалены. Удалено файлов: $deleted_conf_service_count."
+    log_message "INFO" "Старые резервные копии на NFS-шаре успешно удалены. Удалено файлов: $total_deleted_files_count."
 else
     log_message "INFO" "Старых резервных копий для удаления не найдено."
 fi
-
-touch "$NFS_BACKUP_DIR/done.flag"
 
 log_message "INFO" "Процесс резервного копирования завершен."
