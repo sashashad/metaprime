@@ -70,46 +70,39 @@ backup_date=$(date +%d-%m-%Y)
 databases=("ias_gorizont_filestorage")
 
 if [ -f "$nfs/done.flag" ]; then
-    # Удалите файл-сигнал
-    rm "$nfs/done.flag"
-    
-    for db in "${databases[@]}"; do
-        backup_file="$nfs/$backup_date-${db}.backup.gz"
-        uncompressed_backup_file="$nfs/$backup_date-${db}.backup"
+     log_message "INFO" "Найден файл-флаг '$nfs/done.flag'."
 
-        # Распаковка файла
-        if gunzip -c "$backup_file" > "$uncompressed_backup_file"; then
-            # Восстановление базы данных
-            if pg_restore -U postgres -C -d "postgres" -p 5433 -F c "$uncompressed_backup_file"; then
-                log_message "INFO" "Резервная копия базы данных '$db' успешно восстановлена."
-                # Удаляем базу данных после восстановления (если нужно)
-                psql -U postgres -p 5433 -c "DROP DATABASE IF EXISTS $db;"
-            else
-                log_message "ERROR" "Ошибка при восстановлении резервной копии базы данных '$db'."
-                # error_message="Ошибка при восстановлении базы данных '$db'"
-                # send_email "$MAIL_SUBJECT" "$error_message"
-                # send_telegram "$error_message"
-            fi
-            # Удаляем временный файл после восстановления
-            rm "$uncompressed_backup_file"
+     # Удалите файл-сигнал
+     rm "$nfs/done.flag"
+
+    for db in "${databases[@]}"; do
+        backup_file="$nfs/$backup_date-${db}.backup"  # Убираем .gz
+
+        # Восстановление базы данных
+        if pg_restore -U postgres -C -d "postgres" -p 5433 -F c "$backup_file"; then
+            log_message "INFO" "Резервная копия базы данных '$db' успешно восстановлена."
+            # Удаляем базу данных после восстановления
+            psql -U postgres -p 5433 -c "DROP DATABASE IF EXISTS $db;"
         else
-            log_message "ERROR" "Ошибка при распаковке резервной копии базы данных '$db'."
+            log_message "ERROR" "Ошибка при восстановлении резервной копии базы данных '$db'."
+            # Удаляем базу в случаае ошибки
+            psql -U postgres -p 5433 -c "DROP DATABASE IF EXISTS $db;"
+            # error_message="Ошибка при восстановлении базы данных '$db'"
+            # send_email "$MAIL_SUBJECT" "$error_message"
+            # send_telegram "$error_message"
         fi
     done
 
-    # Устанавливаем trap для удаления временного файла при выходе из скрипта
-    trap 'rm -f "$uncompressed_backup_file"' EXIT
-
     user_backup_file="$nfs/$backup_date-users.sql"
     temp_user_file="$nfs/temp_users.sql"
-    
+
     # Извлекаем пользователей из резервной копии
     grep -E '^CREATE USER|^CREATE ROLE' "$user_backup_file" > "$temp_user_file"
-    
+
     # Проверяем и добавляем пользователей
     while IFS= read -r line; do
         # Извлечение имени пользователя или роли
-        if [[ $line =~ '^CREATE (USER|ROLE) ([^;]+);' ]]; then
+        if [[ $line =~ \'^CREATE (USER|ROLE) ([^;]+);\' ]]; then
             username="${BASH_REMATCH[2]}"
             # Удаляем возможные кавычки вокруг имени
             username="${username#\"}"
