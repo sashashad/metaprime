@@ -13,14 +13,14 @@ log_message() {
 # Функция отображения справки
 show_help() {
     echo
-    echo "Использование: $0 <nfs_backup_dir>"
+    echo "Использование: $0 <NFS_BACKUP_DIR_backup_dir>"
     echo
     echo "Этот скрипт предназначен для восстановления резервных копий баз данных PostgreSQL с NFS-шары."
     echo
-    echo "Перед использованием убедитесь, что NFS-шара доступна на целевом сервере с помощью команды \"showmount -e <nfs-server>\""
+    echo "Перед использованием убедитесь, что NFS-шара доступна на целевом сервере с помощью команды \"showmount -e <NFS_BACKUP_DIR-server>\""
     echo
     echo "Аргументы:"
-    echo "  <nfs_backup_dir>: Путь к NFS-шаре, где хранятся резервные копии."
+    echo "  <NFS_BACKUP_DIR_backup_dir>: Путь к NFS-шаре, где хранятся резервные копии."
     echo
     echo "Пример использования:"
     echo "  $0 /mnt/gisogd_backup"
@@ -62,21 +62,21 @@ send_telegram() {
 }
 
 # NFS-шара для резервных копий
-nfs="$1"
-backup_date=$(date +%d-%m-%Y)
+NFS_BACKUP_DIR="$1"
+DATE=$(date +%d-%m-%Y)
 
 # Список баз данных для восстановления
 #databases=("ias_gorizont" "ias_gorizont_filestorage" "rosreestr_etl")
 databases=("ias_gorizont_filestorage")
 
-if [ -f "$nfs/done.flag" ]; then
-     log_message "INFO" "Найден файл-флаг '$nfs/done.flag'."
+if [ -f "$NFS_BACKUP_DIR/done.flag" ]; then
+     log_message "INFO" "Найден файл-флаг '$NFS_BACKUP_DIR/done.flag'."
 
      # Удалите файл-сигнал
-     rm "$nfs/done.flag"
+     rm "$NFS_BACKUP_DIR/done.flag"
 
     for db in "${databases[@]}"; do
-        backup_file="$nfs/$backup_date-${db}.backup"  # Убираем .gz
+        backup_file="$NFS_BACKUP_DIR/$DATE-${db}.backup"  # Убираем .gz
 
         # Восстановление базы данных
         if pg_restore -U postgres -C -d "postgres" -p 5433 -F c "$backup_file"; then
@@ -93,8 +93,8 @@ if [ -f "$nfs/done.flag" ]; then
         fi
     done
 
-    user_backup_file="$nfs/$backup_date-users.sql"
-    temp_user_file="$nfs/temp_users.sql"
+    user_backup_file="$NFS_BACKUP_DIR/$DATE-users.sql"
+    temp_user_file="$NFS_BACKUP_DIR/temp_users.sql"
 
     # Извлекаем пользователей из резервной копии
     grep -E '^CREATE USER|^CREATE ROLE' "$user_backup_file" > "$temp_user_file"
@@ -126,5 +126,5 @@ if [ -f "$nfs/done.flag" ]; then
     
     log_message "INFO" "Процесс восстановления резервных копий пользователей завершен."
 else
-    log_message "WARNING" "Отсутствует файл-флаг '$nfs/done.flag'."
+    log_message "WARNING" "Отсутствует файл-флаг '$NFS_BACKUP_DIR/done.flag'."
 fi

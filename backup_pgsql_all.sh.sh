@@ -42,7 +42,7 @@ fi
 
 # NFS-шара для резервных копий
 NFS_BACKUP_DIR="$1"
-backup_date=$(date +%d-%m-%Y)
+DATE=$(date +%d-%m-%Y)
 
 # Создание необходимых директорий для резервных копий
 mkdir -p "$NFS_BACKUP_DIR/conf" "$NFS_BACKUP_DIR/service"
@@ -64,7 +64,7 @@ databases=("ias_gorizont" "ias_gorizont_filestorage" "rosreestr_etl")
 backup_success=true
 
 for db in "${databases[@]}"; do
-    backup_file="$NFS_BACKUP_DIR/$backup_date-${db}.backup"
+    backup_file="$NFS_BACKUP_DIR/$DATE-${db}.backup"
 
     # Команда для создания резервной копии
     pg_dump -U postgres -F c -b -v "$db" > "$backup_file"
@@ -88,7 +88,7 @@ else
 fi
 
 # Резервное копирование пользователей и их привилегий
-user_backup_file="$NFS_BACKUP_DIR/$backup_date-users.sql"
+user_backup_file="$NFS_BACKUP_DIR/$DATE-users.sql"
 pg_dumpall -U postgres --roles-only > "$user_backup_file"
 if [ $? -eq 0 ]; then
     log_message "INFO" "Резервная копия пользователей успешно создана: $user_backup_file"
@@ -100,7 +100,7 @@ fi
 config_files=$(find /srv/pgsql/16/data/ -type f \( -name "pg_hba.conf" -o -name "postgresql.conf" \) 2>/dev/null)
 for config_file in $config_files; do
     base_name=$(basename "$config_file")
-    backup_path="$NFS_BACKUP_DIR/conf/$backup_date-${base_name}"
+    backup_path="$NFS_BACKUP_DIR/conf/$DATE-${base_name}"
     cp "$config_file" "$backup_path"
     if [ $? -eq 0 ]; then
         log_message "INFO" "Резервная копия $base_name успешно создана в $backup_path."
@@ -111,7 +111,7 @@ done
 
 # Резервное копирование директории postgresql-16.service.d
 service_dir="/etc/systemd/system/postgresql-16.service.d/"
-service_backup_file="$NFS_BACKUP_DIR/service/$backup_date-postgresql-16.service.d.tar.gz"
+service_backup_file="$NFS_BACKUP_DIR/service/$DATE-postgresql-16.service.d.tar.gz"
 if [ -d "$service_dir" ]; then
     if tar -czf "$service_backup_file" -C "$(dirname "$service_dir")" "$(basename "$service_dir")"; then
         log_message "INFO" "Резервная копия директории postgresql-16.service.d успешно создана: $service_backup_file"
