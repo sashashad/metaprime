@@ -31,7 +31,7 @@ for db in $databases; do
         continue
     fi
 
-    pg_dump -F c -Z9 -b -v -f "$BACKUP_DIR/$db-$(date +%d-%m-%Y).backup" "$db"
+    pg_dump -F c -Z9 -b -v -f "$BACKUP_DIR/$(date +%d-%m-%Y)-$db.backup" "$db"
     if [ $? -eq 0 ]; then
         log_message "INFO" "Резервная копия базы данных '$db' успешно создана."
     else
@@ -43,7 +43,7 @@ done
 # Функция для удаления старых резервных копий
 cleanup_old_backups() {
     # Подсчет и удаление старых резервных копий, созданных более 5 дней назад
-    old_backups_count=$(find "$BACKUP_DIR" -type f -name "*.backup" -mtime +5 -print -exec rm {} \; | wc -l)
+    old_backups_count=$(find "$BACKUP_DIR" -type f -mtime +5 -print -exec rm {} \; | wc -l)
 
     if [ $? -eq 0 ]; then
         log_message "INFO" "Старые резервные копии, созданные более 5 дней назад, успешно удалены. Удалено файлов: $old_backups_count."
@@ -58,3 +58,10 @@ if [ "$backup_successful" = true ]; then
 else
     log_message "INFO" "Резервные копии не были созданы, очистка старых резервных копий не требуется."
 fi
+
+tar -czvf /opt/backups/configs/"`date +%d-%m-%Y`"-postgresql_configs.tar.gz /etc/postgresql/14/main &&
+tar -czvf /opt/backups/configs/"`date +%d-%m-%Y`"-pgbouncer_configs.tar.gz /etc/pgbouncer &&
+tar -czvf /opt/backups/configs/"`date +%d-%m-%Y`"-signers_jcp_jdk_configs.tar.gz /opt/registerx/jcp/ &&
+cp -v /opt/postgresql/.bash_history /opt/backups/configs/ &&
+cp -v /opt/postgresql/.psql_history /opt/backups/configs/ &&
+find "/opt/backups/configs" -type f -mtime +5 -exec rm {} \;

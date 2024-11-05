@@ -80,7 +80,7 @@ fi
 
 # Список баз данных для резервного копирования
 databases=("ias_gorizont_filestorage")
-#databases=("ias_gorizont" "ias_gorizont_filestorage" "rosreestr_etl")
+#databases=("ias_gorizont_filestorage" "rosreestr_etl" "ias_gorizont")
 
 # Создание резервных копий каждой базы данных
 backup_success=true
