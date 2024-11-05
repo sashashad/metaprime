@@ -16,7 +16,7 @@ show_help() {
     echo "Использование: $0 <nfs_backup_dir>"
     echo
     echo "Этот скрипт предназначен для создания резервных копий баз данных PostgreSQL и их копирования на NFS-шару."
-    echo "Также данный скрипт валидиирует созданные резервные копии баз данных и пользователей"
+    echo "Также данный скрипт валидирует созданные резервные копии баз данных и пользователей"
     echo
     echo "Перед использованием убедитесь, что NFS-шара доступна на целевом сервере с помощью команды \"showmount -e <nfs-server>\""
     echo
@@ -100,14 +100,6 @@ for db in "${databases[@]}"; do
     fi
 done
 
-# Удаление старых резервных копий на NFS-шаре (старше 23 ч. 20 мин.) только если все резервные копии успешны
-if [ "$backup_success" = true ]; then
-    deleted_files_count=$(find "$NFS_BACKUP_DIR" -type f -mmin +1400 -exec rm -f {} \; -print | wc -l)
-    log_message "INFO" "Удалено старых резервных копий: $deleted_files_count"
-else
-    log_message "WARNING" "Не удалены старые резервные копии, так как не все резервные копии были созданы успешно."
-fi
-
 # Резервное копирование пользователей и их привилегий
 user_backup_file="$NFS_BACKUP_DIR/$DATE-users.sql"
 pg_dumpall -U postgres --roles-only > "$user_backup_file"
@@ -141,20 +133,6 @@ if [ -d "$service_dir" ]; then
     fi
 else
     log_message "WARNING" "Директория postgresql-16.service.d не найдена."
-fi
-
-
-# Удаление файлов из папок conf и service (старше 1 дня)
-deleted_conf_service_count=$(find "$NFS_BACKUP_DIR/service" "$NFS_BACKUP_DIR/conf" -type f -mtime +1 -exec rm -f {} \; -print | wc -l)
-deleted_conf_service_count=$((deleted_conf_service_count + $(find "$NFS_BACKUP_DIR" -type f -mtime +1 -exec rm -f {} \; -print | wc -l)))
-
-# Общее количество удаленных файлов
-total_deleted_files_count=$((deleted_files_count + deleted_conf_service_count))
-
-if [ "$total_deleted_files_count" -gt 0 ]; then
-    log_message "INFO" "Старые резервные копии на NFS-шаре успешно удалены. Удалено файлов: $total_deleted_files_count."
-else
-    log_message "INFO" "Старых резервных копий для удаления не найдено."
 fi
 
 log_message "INFO" "Процесс резервного копирования завершен."
@@ -196,7 +174,7 @@ while IFS= read -r line; do
 
         # Проверка существования роли
         if ! psql -U postgres -p 5433 -tAc \"SELECT 1 FROM pg_roles WHERE rolname = \'$username\';\" | grep -q 1; then
-            if psql -U postgres -p 5433 -c "$line/"; then
+            if psql -U postgres -p 5433 -c "$line"; then
                 log_message "INFO" "Роль или пользователь '$username' успешно добавлен."
             else
                 log_message "ERROR" "Ошибка при добавлении роли или пользователя '$username'."
@@ -211,3 +189,24 @@ done < "$temp_user_file"
 trap 'rm -f "$temp_user_file"' EXIT
 
 log_message "INFO" "Процесс восстановления резервных копий пользователей завершен."
+
+# Функция для удаления старых резервных копий
+cleanup_old_backups() {
+    # Подсчет и удаление старых резервных копий, созданных более 1 дня назад
+    old_backups_count=$(find "$BACKUP_DIR" -type f -mtime +1 -print -exec rm {} \; | wc -l)
+
+    if [ $? -eq 0 ]; then
+        log_message "INFO" "Старые резервные копии, созданные более дня назад, успешно удалены. Удалено файлов: $old_backups_count."
+    else
+        log_message "ERROR" "Ошибка при удалении старых резервных копий."
+    fi
+}
+
+# Удаление старых резервных копий на NFS-шаре (старше 23 ч. 20 мин.) только если все резервные копии успешны
+if [ "$backup_success" = true ]; then
+    cleanup_old_backups
+else
+    log_message "WARNING" "Не удалены старые резервные копии, так как не все резервные копии были созданы успешно."
+fi
+
+log_message "INFO" "Процесс резервного копирования завершен."
