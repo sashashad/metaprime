@@ -193,7 +193,7 @@ log_message "INFO" "Процесс восстановления резервны
 # Функция для удаления старых резервных копий
 cleanup_old_backups() {
     # Подсчет и удаление старых резервных копий, созданных более 1 дня назад
-    old_backups_count=$(find "$BACKUP_DIR" -type f -mtime +1 -print -exec rm {} \; | wc -l)
+    old_backups_count=$(find "$NFS_BACKUP_DIR" -type f -mmin +1400 -exec rm -f {} \; -print | wc -l)
 
     if [ $? -eq 0 ]; then
         log_message "INFO" "Старые резервные копии, созданные более дня назад, успешно удалены. Удалено файлов: $old_backups_count."
