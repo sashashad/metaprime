@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -euo pipefail
+
+echo "🔍 Ищем все локальные образы gradle:* ..."
+mapfile -t gradle_images < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^gradle:')
+
+if ((${#gradle_images[@]} == 0)); then
+  echo "ℹ️ Образы gradle:* не найдены. Просто выполняем очистку."
+else
+  echo "📦 Найдены образы gradle:"
+  printf ' - %s\n' "${gradle_images[@]}"
+fi
+
+echo "🧹 Запускаем docker system prune..."
+docker system prune -a --volumes -f
+
+if ((${#gradle_images[@]} > 0)); then
+  echo "📥 Восстанавливаем образы gradle..."
+  for image in "${gradle_images[@]}"; do
+    echo "⬇️ Pulling $image ..."
+    docker pull "$image" || echo "⚠️ Не удалось скачать $image"
+  done
+fi
+
+echo "🎯 Готово! Все gradle образы восстановлены после очистки."
